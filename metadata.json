@@ -1,0 +1,10 @@
+{
+    "name": "HoleInTheWall2",
+    "description": "Displays blocks better in HITW",
+    "creator": "stuffiness",
+    "helpmessage": "&c/hitw [block]",
+    "entry": "index.js",
+    "version": "3.0.0",
+    "changelog": "HITW v3.0.0\nModule Toggle, Customize Colors, Show Incorrect Blocks, and command shortcut\n &7/hitw",
+    "requires": ["Vigilance"]
+  }
