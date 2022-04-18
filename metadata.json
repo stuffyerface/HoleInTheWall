@@ -1,10 +1,10 @@
 {
-    "name": "HoleInTheWall2",
+    "name": "HoleInTheWall",
     "description": "Displays blocks better in HITW",
     "creator": "stuffiness",
     "helpmessage": "&c/hitw [block]",
     "entry": "index.js",
-    "version": "3.0.0",
+    "version": "3.0.2",
     "changelog": "&m&b---------------------------\n&3&nHITW v3.0.0&e&l NEW FEATURES!\n\n&7 -Module Toggle\n&7 -Customize Colors\n&7 -Show Incorrect Blocks\n&7 -Complete Board Notification\n\n&a Join command shortcut: &b/hitw\n&a Open settings: &b/holeinthewall\n&m&b---------------------------",
     "requires": ["Vigilance"]
   }
