@@ -12,7 +12,7 @@ import {
     Color
 } from "../Vigilance/index";
 
-@Vigilant("HoleInTheWall2")
+@Vigilant("HoleInTheWall")
 class Settings {
     constructor() {
         this.initialize(this);
@@ -37,21 +37,21 @@ class Settings {
         description: "Customize block color.",
         category: "Settings"
     })
-    boxColor = new java.awt.Color(0, 0, 0, 0.1); 
+    boxColor = new java.awt.Color(0.0, 0.0, 0.64, 0.50); 
 
     @ColorProperty({
         name: "§aWrong Block Color",
         description: "Customize block color.",
         category: "Settings"
     })
-    boxColorBad = new java.awt.Color(0, 0, 0, 0.1); 
+    boxColorBad = new java.awt.Color(0.9, 0.0, 0.0, 0.25); 
 
     @ColorProperty({
         name: "§aCorrect Block Color",
         description: "Customize block color.",
         category: "Settings"
     })
-    boxColorGood = new java.awt.Color(0, 0, 0, 0.1); 
+    boxColorGood = new java.awt.Color(0.0, 0.0, 0.0, 0.1); 
 }
 
 export default new Settings;
