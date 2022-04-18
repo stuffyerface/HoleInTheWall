@@ -25,6 +25,13 @@ class Settings {
     })
     hotw = true;
 
+    @SwitchProperty({
+        name: "§aToggle Title Message",
+        description: "Display a message on screen when your placement is perfect.",
+        category: "Settings"
+    })
+    title = true;
+
     @ColorProperty({
         name: "§aBlock Color",
         description: "Customize block color.",
