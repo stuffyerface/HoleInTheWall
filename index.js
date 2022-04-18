@@ -1,16 +1,10 @@
 import RenderLib from "../RenderLib/index.js";
 import Settings from "./config";
-const highlightedBlocks = [[99, 41, -67]];
-const highlightedBlocksBad = [[99, 41, -66]];
-const highlightedBlocksGood = [[99, 41, -65]];
+let highlightedBlocks = [];
+let highlightedBlocksBad = [];
+let highlightedBlocksGood = [];
 let lever = [0, -10000, 0];
-let width = 0;
-let height = 0;
-let plane = "null";
-
-register("command", () => {
-    ChatLib.chat(highlightedBlocks.toString())
-}).setName("debug")
+let enabled = false;
 
 register("command", () => {
     ChatLib.command("play arcade_hole_in_the_wall");
@@ -22,209 +16,222 @@ register("command", () => {
 
 register("tick", () => {
     if (Settings.hotw && checkGame("hole in the wall")) {
-        hitwSolver();
+        enabled = true;
     }else{
-        // clear the highlighted blocks
+        //Reset variables
+        lever = [0, -10000, 0];
+        enabled = false;
         return;
     }
-})
+});
 
-function checkGame(game) {
-    //console.log(Scoreboard.getTitle().removeFormatting().toLowerCase().includes(game.toLowerCase()))
-    return Scoreboard.getTitle().removeFormatting().toLowerCase().includes(game.toLowerCase())
-}
+register("step", () => {
+    if (!enabled){
+        return;
+    }
+    if(calcDist(lever,[Player.getX(), Player.getY(), Player.getZ()]) > 15){
+        //console.log("Too far away from lever, finding new one");
+        findLever(Player.getX(), Player.getY(), Player.getZ());
+    }
+}).setDelay(3);
 
-function hitwSolver() {
-    if (!Settings.hotw){
+register("step", () => {
+    if (!enabled){
         return;
     }
-    if (!checkGame("hole in the wall")){
-        return;
-    }
-    grid = findGrid();
-    highlightedBlocks(grid);
-    // find the placement grid (with orientation, coords of top wall)
-    //   ex: [ xoffset, zoffset, top wall, [[true, true, true], [false, false, false]] ]
-    //  height, width, rotation, top wall, grid
-    return;
-}
-/* THIS IS BROKEN FIX IT
-function highlightedBlocks(grid) {
-    for(let i = 0; i < grid.length; i++){
-        for(let j = 0; j < grid[i].length; j++){
-            if(grid[i][j][0] === "good"){
-                highlightedBlocksGood.push([grid[i][j][1], grid[i][j][2], grid[i][j][3]]);
-            }else if(grid[i][j][0] === "bad"){
-                highlightedBlocksBad.push([grid[i][j][1], grid[i][j][2], grid[i][j][3]]);
-            }else if(grid[i][j][0] === "highlight"){
-                highlightedBlocks.push([grid[i][j][1], grid[i][j][2], grid[i][j][3]]);
+    let bottomGlass;
+    for(let x = -2; x <= 2; x++){
+        for(let z = -2; z <= 2; z++){
+            checker = checkBlock(lever[0] + x, lever[1]-1, lever[2] + z);
+            if(checker[3] == "Stained Glass"){
+                bottomGlass = [checker[0], checker[1], checker[2]];
+                break;
             }
         }
     }
-   return;
-}
-*/
+    if(bottomGlass == undefined){
+        //console.log("No bottom glass found.");
+        return;
+    }
+    let topGlass;
+    let height = 0;
+    for(let y = 0; y <= 10; y++){
+        checker = checkBlock(bottomGlass[0], bottomGlass[1] + y, bottomGlass[2]);
+        if(checker[3] == "tile.air.name"){
+            topGlass = [checker[0], checker[1]-1, checker[2]];
+            height = y-2;
+            break;
+        }
+    }
+    if(topGlass == undefined){
+        //console.log("No top glass found.");
+        return;
+    }
+    //Find the top cobblestone wall
+    let topCobblestone;
+    //console.log("checking")
+    for(let x = -5; x <= 5; x++){
+        checker = checkBlock(topGlass[0] + x, topGlass[1]+1, topGlass[2]);
+        //console.log(checker[3]);
+        if(checker[3] == "Cobblestone Wall"){
+            topCobblestone = [checker[0], checker[1], checker[2]];
+            break;
+        }
+    }
+    if(topCobblestone == undefined){
+        for(let z = -5; z <= 5; z++){
+            checker = checkBlock(topGlass[0], topGlass[1]+1, topGlass[2] + z);
+            //console.log(checker[3]);
+            if(checker[3] == "Cobblestone Wall"){
+                topCobblestone = [checker[0], checker[1], checker[2]];
+                break;
+            }
+        }
+    }
+    if(topCobblestone == undefined){
+        //console.log("No top cobblestone found.");
+        return;
+    }
+    for(let x = -5; x <= 5; x++){
+        for(let z = -5; z <= 5; z++){
+            checker = checkBlock(topCobblestone[0] + x, topCobblestone[1], topCobblestone[2] + z);
+            if(checker[3] == "Cobblestone Wall"){
+                break;
+            }
+        }
+    }
+    let xoffset = 0;
+    let zoffset = 0;
+    for(let x = -1; x <= 1; x++){
+        if(x == 0){
+            continue;
+        }
+        checker = checkBlock(topCobblestone[0] + x, topCobblestone[1], topCobblestone[2]);
+        if(checker[3] == "Cobblestone Wall"){
+            xoffset = x;
+            break;
+        }
+    }
+    if(xoffset != 0){
+        for(let z = -1; z <= 1; z++){
+            if(z == 0){
+                continue;
+            }
+            checker = checkBlock(topCobblestone[0], topCobblestone[1], topCobblestone[2] + z);
+            if(checker[3] == "Cobblestone Wall"){
+                zoffset = z;
+                break;
+            }
+        }
+    }
+    if(xoffset == 0 && zoffset == 0){
+        //console.log("No top cobblestone found.");
+        return;
+    }
+    let distance;
+    let templateWall;
+    for(let x = 0; x<= 15; x++){
+        checker = checkBlock(topCobblestone[0] + xoffset*x, topCobblestone[1]-1, topCobblestone[2] + zoffset*x);
+        if(checker[3] == "Cobblestone Wall"){
+            distance = x;
+            templateWall = checker;
+            break;
+        }
+    }
+    if(distance == undefined){
+        //console.log("No distance cobblestone found.");
+        return;
+    }
+    let width = Math.abs(topCobblestone[0] - bottomGlass[0] + topCobblestone[2] - bottomGlass[2])*2 - 1;
+    //console.log("width: " + width);
+    //console.log("height: " + height);
 
+    clearHighlightedBlocks();
+    halfwidth = Math.floor(width/2);
+    let finished = true;
+    for(let x = -halfwidth; x <= halfwidth; x++){
+        for(let y = 0; y < height; y++){
+            checkCutout = checkBlock(templateWall[0] + zoffset*x, templateWall[1] -y -1, templateWall[2] + xoffset*x);
+            checkCanvas = checkBlock(topCobblestone[0] + zoffset*x, topCobblestone[1] -y -2, topCobblestone[2] + xoffset*x);
+            if(checkCutout[3] == "tile.air.name" && checkCanvas[3] == "Stained Glass"){
+                highlightedBlocksGood.push([checkCanvas[0], checkCanvas[1], checkCanvas[2]]);
+            }
+            if(checkCutout[3] == "tile.air.name" && checkCanvas[3] == "tile.air.name"){
+                finished = false;
+                highlightedBlocks.push([checkCanvas[0], checkCanvas[1], checkCanvas[2]]);
+            }
+            if(checkCutout[3] == "Stained Clay" && checkCanvas[3] == "Stained Glass"){
+                finished = false;
+                highlightedBlocksBad.push([checkCanvas[0], checkCanvas[1], checkCanvas[2]]);
+            }
+        }
+    }
+    if(finished && checkInGame() && Settings.title){
+        Client.showTitle("", "§a§lCOMPLETE!§e flick the lever.", 0, 6, 0);
+    }
+}).setFps(5);
+
+function checkGame(game) {
+    return Scoreboard.getTitle().removeFormatting().toLowerCase().includes(game.toLowerCase());
+}
+
+function checkInGame() {
+    let lines = Scoreboard.getLines();
+    let bool = false;
+    for (let i = 0; i < lines.length; i++) {
+        currLine = lines[i].toString().removeFormatting().toLowerCase();
+        if(currLine.includes("wall")){
+            bool = true;
+        }
+    }
+    return bool;
+}
 
 function calcDist(loc1, loc2){
     return Math.sqrt(Math.pow(loc1[0]-loc2[0], 2) + Math.pow(loc1[1]-loc2[1], 2) + Math.pow(loc1[2]-loc2[2], 2));
 }
 
-function findLever(x, y, z) {
-    let searchRange = 10;
-    for(var a = -searchRange; a <= searchRange; a++){
-        for(var b = -searchRange; b <= searchRange; b++){
-            for(var c = -searchRange; c <= searchRange; c++){
-                console.log(a, b, c);
-                //console.log(World.getBlockAt(x+a, y+b, z+c).getType().getName());
-                if(World.getBlockAt(x+a, y, z+b).getType().getName().toString() === "Lever"){
-                    lever = [x+a-.5, y-.5, z+b+.5];
-                    //highlightedBlocks.push(lever)
-                    return true;
-                }
-            }
-        }
+function checkBlock(x, y, z){
+    newx = Math.round(x-.5);
+    newy = Math.round(y-.5);
+    newz = Math.round(z-.5);
+    //console.log(newx, newy, newz);
+    //highlightedBlocks[0] = [newx, newy, newz];
+    try{
+    block = World.getBlockAt(newx, newy, newz).getType().getName().toString();
+    }catch(e){
+        console.error(e);
+        return [newx, newy, newz, "null"];
     }
-    return false;
+    return [newx, newy, newz, block];
 }
 
-function findGridHelper(lever){
-    let x = lever[0];
-    let y = lever[1];
-    let z = lever[2];
-    let grid = [];
-    let selected = [];
-    width = 0;
-    height = 0;
-    plane = "null";
-    distance = 0;
-    for(let a=-1; a<=1; a++){
-        for(let b=-1; b<=1; b++){
-            if(World.getBlockAt(x+a, y, z+b).getType().getName().toString() === "Stained Glass"){
-                selected = [x+a, y, z+b];
-            }
-        }
-    }
-    for(let i=0; i<=10; i++){
-        if(World.getBlockAt(selected[0], selected[1]+i, selected[2]).getType().getName().toString() === "Air"){
-            selected = [selected[0], selected[1]+i, selected[2]];
-            // The air block above the stained glass
-            height = i-2;
-            break;
-        }
-        throw "Could not find grid (No air found)";
-    }
-    for(let dx = -5; dx <= 5; dx++){
-        for(let dz = -5; dz <= 5; dz++){
-            if(World.getBlockAt(selected[0]+dx, selected[1],selected[2]).getType().getName().toString() === "Cobblestone Wall"){
-                selected = [selected[0]+dx, selected[1], selected[2]];
-                // The first cobblestone wall
-                width = Math.abs(dx)*2-1;
-                dz = 0;
-                break;
-            }
-            if(World.getBlockAt(selected[0], selected[1],selected[2]+dz).getType().getName().toString() === "Cobblestone Wall"){
-                selected = [selected[0], selected[1], selected[2]+dz];
-                // The first cobblestone wall
-                width = Math.abs(dz)*2-1;
-                dx = 0;
-                break;
-            }
-            throw "Could not find grid (No cobblestone wall found)";
-        }
-    }
-    //find the hanging wall
-    let pattern = [];
-    for(let i = -20; i <= 20; i++){
-        for(let j = -20; j <= 20; j++){
-            if(World.getBlockAt(selected[0]+i, selected[1]-1, selected[2]).getType().getName().toString() === "Cobblestone Wall"){
-                selected = [selected[0]+i, selected[1]-1, selected[2]];
-                // Wall above the pattern
-                plane = "z";
-                distance = i;
-                break;
-            }
-            if(World.getBlockAt(selected[0], selected[1]-1, selected[2]+j).getType().getName().toString() === "Cobblestone Wall"){
-                selected = [selected[0], selected[1]-1, selected[2]+j];
-                // Wall above the pattern
-                plane = "x";
-                distance = j;
-                break;
-            }
-        }
-    }
-    if(plane === "null"){
-        throw "Could not find grid (No wall above pattern found)";
-    }
-    if(plane === "x"){
-        for(let i = height; i >=0; i--){
-            let row = [];
-            for(let i = -(width-1)/2; i <= (width-1)/2; i++){
-                if(World.getBlockAt(selected[0]+i, selected[1]+i, selected[2]).getType().getName().toString() === "air"){
-                    row.push(false);
-                }else{
-                    row.push(true);
-                }
-            }
-            pattern.push(row);
-        }
-    }else{
-        for(let i = height; i >=0; i--){
-            let row = [];
-            for(let i = -(width-1)/2; i <= (width-1)/2; i++){
-                if(World.getBlockAt(selected[0], selected[1]+i, selected[2]+i).getType().getName().toString() === "air"){
-                    row.push(false);
-                }else{
-                    row.push(true);
-                }
-            }
-            pattern.push(row);
-        }
-    }
-    //compare the pattern to what is placed
-    for(let i = height; i >=0; i--){
-        let row = [];
-        for(let j = -(width-1)/2; j <= (width-1)/2; j++){
-            if(pattern[height-i][j]){
-                if(World.getBlockAt(selected[0]+j, selected[1]+i, selected[2]).getType().getName().toString() === "air"){
-                    row.push(["highlight",selected[0]+j, selected[1]+i, selected[2]]);
-                }else{
-                    row.push(["good",selected[0]+j, selected[1]+i, selected[2]]);
-                }
-            }else{
-                if(World.getBlockAt(selected[0]+j, selected[1]+i, selected[2]).getType().getName().toString() === "air"){
-                    row.push(["dont",selected[0]+j, selected[1]+i, selected[2]]);
-                }else{
-                    row.push(["bad",selected[0]+j, selected[1]+i, selected[2]]);
+function findLever(x, y, z){
+    range = 10;
+    for(i = -range; i <= range; i++){
+        for(j = -range; j <= range; j++){
+            for(k = -range; k <= range; k++){
+                checking = checkBlock(x+i, y+j, z+k);
+                if(checking[3] == "Lever"){
+                    lever = [checking[0], checking[1], checking[2]];
+                    //highlightedBlocksGood[0] = [checking[0], checking[1], checking[2]];
+                    return;
                 }
             }
         }
-        grid.push(row);
     }
-    return grid;
 }
 
-function findGrid() {
-    let dist = calcDist(lever,[Player.getX(), Player.getY(), Player.getZ()]);
-    ChatLib.chat("Distance: " + dist);
-    if(dist > 10){
-        // find new lever and grid
-        lever = findLever(Player.getX(), Player.getY(), Player.getZ());
-        if(!lever){
-            ChatLib.chat(lever);
-            ChatLib.chat("Could not find lever");
-            return false;
-        }
-        return findGridHelper(lever);
-    }else{
-        return;
-    }
-}    
+function clearHighlightedBlocks(){
+    highlightedBlocks = [];
+    highlightedBlocksGood = [];
+    highlightedBlocksBad = [];
+}
 
 register("renderWorld", () => {
-    if (Settings.hotw && checkGame("hole in the wall")) {
+    if (enabled) {
         for(x in highlightedBlocks){
-            RenderLib.drawInnerEspBox(highlightedBlocks[x][0]+0.5, highlightedBlocks[x][1], highlightedBlocks[x][2]+0.5, 0.9, 0.9, Settings.boxColor.getRed()/255, Settings.boxColor.getGreen()/255, Settings.boxColor.getBlue()/255, Settings.boxColor.getAlpha()/255, true);
+            RenderLib.drawInnerEspBox(highlightedBlocks[x][0]+.5, highlightedBlocks[x][1], highlightedBlocks[x][2]+.5, 0.9, 0.9, Settings.boxColor.getRed()/255, Settings.boxColor.getGreen()/255, Settings.boxColor.getBlue()/255, Settings.boxColor.getAlpha()/255, true);
         }
         for(x in highlightedBlocksBad){
             RenderLib.drawInnerEspBox(highlightedBlocksBad[x][0]+0.5, highlightedBlocksBad[x][1], highlightedBlocksBad[x][2]+0.5, 0.9, 0.9, Settings.boxColorBad.getRed()/255, Settings.boxColorBad.getGreen()/255, Settings.boxColorBad.getBlue()/255, Settings.boxColorBad.getAlpha()/255, true);
