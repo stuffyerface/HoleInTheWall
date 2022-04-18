@@ -19,7 +19,6 @@ register("tick", () => {
         enabled = true;
     }else{
         //Reset variables
-        lever = [0, -10000, 0];
         enabled = false;
         return;
     }
@@ -29,8 +28,9 @@ register("step", () => {
     if (!enabled){
         return;
     }
-    if(calcDist(lever,[Player.getX(), Player.getY(), Player.getZ()]) > 15){
-        //console.log("Too far away from lever, finding new one");
+    let distCheck = calcDist(lever,[Player.getX(), Player.getY(), Player.getZ()]);
+    if(distCheck > 15){
+        //console.log("Too far away from lever, finding new one: " + distCheck);
         findLever(Player.getX(), Player.getY(), Player.getZ());
     }
 }).setDelay(3);
@@ -40,9 +40,10 @@ register("step", () => {
         return;
     }
     let bottomGlass;
-    for(let x = -2; x <= 2; x++){
-        for(let z = -2; z <= 2; z++){
+    for(let x = -3; x <= 3; x++){
+        for(let z = -3; z <= 3; z++){
             checker = checkBlock(lever[0] + x, lever[1]-1, lever[2] + z);
+            //console.log(checker[0] + " " + checker[1] + " " + checker[2]);
             if(checker[3] == "Stained Glass"){
                 bottomGlass = [checker[0], checker[1], checker[2]];
                 break;
@@ -55,7 +56,7 @@ register("step", () => {
     }
     let topGlass;
     let height = 0;
-    for(let y = 0; y <= 10; y++){
+    for(let y = 0; y <= 15; y++){
         checker = checkBlock(bottomGlass[0], bottomGlass[1] + y, bottomGlass[2]);
         if(checker[3] == "tile.air.name"){
             topGlass = [checker[0], checker[1]-1, checker[2]];
@@ -64,25 +65,24 @@ register("step", () => {
         }
     }
     if(topGlass == undefined){
-        //console.log("No top glass found.");
+        console.log("No top glass found.");
         return;
     }
     //Find the top cobblestone wall
     let topCobblestone;
     //console.log("checking")
-    for(let x = -5; x <= 5; x++){
+    for(let x = -10; x <= 10; x++){
         checker = checkBlock(topGlass[0] + x, topGlass[1]+1, topGlass[2]);
-        //console.log(checker[3]);
-        if(checker[3] == "Cobblestone Wall"){
+        if(checker[3] == "Cobblestone Wall" || checker[3] == "Mossy Cobblestone Wall"){
             topCobblestone = [checker[0], checker[1], checker[2]];
             break;
         }
     }
     if(topCobblestone == undefined){
-        for(let z = -5; z <= 5; z++){
+        for(let z = -10; z <= 10; z++){
             checker = checkBlock(topGlass[0], topGlass[1]+1, topGlass[2] + z);
             //console.log(checker[3]);
-            if(checker[3] == "Cobblestone Wall"){
+            if(checker[3] == "Cobblestone Wall" || checker[3] == "Mossy Cobblestone Wall"){
                 topCobblestone = [checker[0], checker[1], checker[2]];
                 break;
             }
@@ -91,14 +91,6 @@ register("step", () => {
     if(topCobblestone == undefined){
         //console.log("No top cobblestone found.");
         return;
-    }
-    for(let x = -5; x <= 5; x++){
-        for(let z = -5; z <= 5; z++){
-            checker = checkBlock(topCobblestone[0] + x, topCobblestone[1], topCobblestone[2] + z);
-            if(checker[3] == "Cobblestone Wall"){
-                break;
-            }
-        }
     }
     let xoffset = 0;
     let zoffset = 0;
@@ -130,7 +122,7 @@ register("step", () => {
     }
     let distance;
     let templateWall;
-    for(let x = 0; x<= 15; x++){
+    for(let x = 0; x<= 30; x++){
         checker = checkBlock(topCobblestone[0] + xoffset*x, topCobblestone[1]-1, topCobblestone[2] + zoffset*x);
         if(checker[3] == "Cobblestone Wall"){
             distance = x;
@@ -207,6 +199,7 @@ function checkBlock(x, y, z){
 }
 
 function findLever(x, y, z){
+    //console.log("Finding Lever")
     range = 10;
     for(i = -range; i <= range; i++){
         for(j = -range; j <= range; j++){
@@ -215,6 +208,7 @@ function findLever(x, y, z){
                 if(checking[3] == "Lever"){
                     lever = [checking[0], checking[1], checking[2]];
                     //highlightedBlocksGood[0] = [checking[0], checking[1], checking[2]];
+                    //console.log("Lever found: " + lever);
                     return;
                 }
             }
